@@ -35,18 +35,35 @@ class Cedula(IntEnum):
 
 
 class Caixa:
+    ESTOQUE_PADRAO = {
+        Cedula.duzentos: 3, Cedula.cem: 5, Cedula.cinquenta: 5,
+        Cedula.vinte: 10, Cedula.dez: 10, Cedula.cinco: 10, Cedula.dois: 30,
+    }
+
     def __init__(self, nome: str, banco: Mediador, cedulas: dict | None = None):
         self.nome = nome
-        self._cedulas = (
-            dict(cedulas)
-            if cedulas
-            else { Cedula.duzentos: 3, Cedula.cem: 5, Cedula.cinquenta: 5,
-                   Cedula.vinte: 10,  Cedula.dez: 10, Cedula.cinco: 10, Cedula.dois: 30}
-        )
+        origem = self.ESTOQUE_PADRAO if cedulas is None else cedulas
+        self._cedulas = self._validar_cedulas(origem)  # valida ANTES de registrar
         self.mediador: Mediador = banco
         banco.registrar(self)
         logger.info(f"[{self.nome}] criado com estoque {self._cedulas}")
 
+    @staticmethod
+    def _validar_cedulas(cedulas: dict) -> dict[Cedula, int]:
+        if not isinstance(cedulas, dict):
+            raise TypeError("As cédulas devem ser um dicionário {Cedula: quantidade}")
+
+        validadas = {}
+        for nota, qtd in cedulas.items():
+            if not isinstance(nota, Cedula):
+                raise TypeError(
+                    f"Chave inválida {nota!r}: use um membro de Cedula (ex.: Cedula.cem)"
+                )
+            if isinstance(qtd, bool) or not isinstance(qtd, int) or qtd < 0:
+                raise ValueError(f"Quantidade inválida para {nota.name}: {qtd!r}")
+            validadas[nota] = qtd
+        return validadas
+        
     @staticmethod
     def calcular_notas(valor: int, estoque: dict) -> dict | None:
         """Menor número de notas para o valor, respeitando o estoque.
